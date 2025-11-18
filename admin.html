@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>AK Trade — Admin Panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{
+  background:#000;
+  color:#fff;
+  font-family:sans-serif;
+  margin:0;
+}
+
+.box{
+  background:#111;
+  padding:20px;
+  border-radius:12px;
+  margin:15px;
+}
+
+input{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border:none;
+  border-radius:10px;
+}
+
+button{
+  padding:12px;
+  background:#00A8FF;
+  border:none;
+  border-radius:10px;
+  color:#fff;
+  width:100%;
+  margin-top:10px;
+  font-size:16px;
+  font-weight:bold;
+}
+
+.table{
+  width:100%;
+  margin-top:10px;
+  border-collapse:collapse;
+}
+
+.table th, .table td{
+  border:1px solid #333;
+  padding:8px;
+  text-align:left;
+}
+
+.approve{
+  background:#00C853;
+  border-radius:8px;
+  padding:6px;
+  cursor:pointer;
+  display:inline-block;
+  margin-right:5px;
+}
+.reject{
+  background:#D50000;
+  border-radius:8px;
+  padding:6px;
+  cursor:pointer;
+  display:inline-block;
+}
+.hidden{ display:none; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginBox" class="box">
+  <h2 style="color:#00A8FF;">Admin Login</h2>
+  <input id="adminUser" placeholder="Username">
+  <input id="adminPass" placeholder="Password" type="password">
+  <button onclick="adminLogin()">Login</button>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminPanel" class="hidden">
+
+<div class="box">
+  <h2 style="color:#00A8FF;">Admin Dashboard</h2>
+  <button onclick="loadUsers()">View Users</button>
+  <button onclick="loadDeposits()">Deposit Requests</button>
+  <button onclick="loadWithdraws()">Withdraw Requests</button>
+  <button onclick="logout()">Logout</button>
+</div>
+
+<!-- USERS -->
+<div id="userBox" class="box hidden">
+  <h3 style="color:#00A8FF;">Users List</h3>
+  <table class="table" id="userTable"></table>
+</div>
+
+<!-- DEPOSITS -->
+<div id="depositBox" class="box hidden">
+  <h3 style="color:#00A8FF;">Deposit Requests</h3>
+  <table class="table" id="depositTable"></table>
+</div>
+
+<!-- WITHDRAWS -->
+<div id="withdrawBox" class="box hidden">
+  <h3 style="color:#00A8FF;">Withdraw Requests</h3>
+  <table class="table" id="withdrawTable"></table>
+</div>
+
+</div>
+
+<script>
+
+// ---- ELEMENTS FIX ----
+let adminUser = document.getElementById("adminUser");
+let adminPass = document.getElementById("adminPass");
+let loginBox = document.getElementById("loginBox");
+let adminPanel = document.getElementById("adminPanel");
+let userBox = document.getElementById("userBox");
+let depositBox = document.getElementById("depositBox");
+let withdrawBox = document.getElementById("withdrawBox");
+let userTable = document.getElementById("userTable");
+let depositTable = document.getElementById("depositTable");
+let withdrawTable = document.getElementById("withdrawTable");
+
+
+// -------------------- Admin Login --------------------
+function adminLogin(){
+  if(adminUser.value==="arslankhan007" && adminPass.value==="arslankhan007"){
+    loginBox.classList.add("hidden");
+    adminPanel.classList.remove("hidden");
+  }else{
+    alert("Wrong Admin Login");
+  }
+}
+
+
+// -------------------- Load Users --------------------
+function loadUsers(){
+  userBox.classList.remove("hidden");
+  depositBox.classList.add("hidden");
+  withdrawBox.classList.add("hidden");
+
+  let table = "<tr><th>Username</th><th>Balance</th><th>Plan</th><th>Expiry</th></tr>";
+
+  for(let i=0;i<localStorage.length;i++){
+    let key = localStorage.key(i);
+    if(key.startsWith("user_")){
+      let u = key.replace("user_","");
+      let d = JSON.parse(localStorage.getItem(key));
+      table+=`
+        <tr>
+          <td>${u}</td>
+          <td>${d.bal}</td>
+          <td>${d.plan ? d.plan : "None"}</td>
+          <td>${d.planExpiry ? d.planExpiry : "—"}</td>
+        </tr>`;
+    }
+  }
+
+  userTable.innerHTML = table;
+}
+
+
+// -------------------- Load Deposits --------------------
+function loadDeposits(){
+  depositBox.classList.remove("hidden");
+  userBox.classList.add("hidden");
+  withdrawBox.classList.add("hidden");
+
+  let data = JSON.parse(localStorage.getItem("deposits") || "[]");
+  let table = "<tr><th>User</th><th>Amount</th><th>Method</th><th>Status</th><th>Action</th></tr>";
+
+  data.forEach((d,i)=>{
+    table+=`
+      <tr>
+        <td>${d.user}</td>
+        <td>${d.amount}</td>
+        <td>${d.method}</td>
+        <td>${d.status}</td>
+        <td>
+          <span class="approve" onclick="approveDeposit(${i})">Approve</span>
+          <span class="reject" onclick="rejectDeposit(${i})">Reject</span>
+        </td>
+      </tr>`;
+  });
+
+  depositTable.innerHTML = table;
+}
+
+function approveDeposit(i){
+  let deposits = JSON.parse(localStorage.getItem("deposits"));
+  let req = deposits[i];
+
+  let u = JSON.parse(localStorage.getItem("user_"+req.user));
+  u.bal += Number(req.amount);
+  localStorage.setItem("user_"+req.user, JSON.stringify(u));
+
+  deposits[i].status = "Approved";
+  localStorage.setItem("deposits", JSON.stringify(deposits));
+  loadDeposits();
+}
+
+function rejectDeposit(i){
+  let deposits = JSON.parse(localStorage.getItem("deposits"));
+  deposits[i].status = "Rejected";
+  localStorage.setItem("deposits", JSON.stringify(deposits));
+  loadDeposits();
+}
+
+
+// -------------------- Load Withdraw --------------------
+function loadWithdraws(){
+  withdrawBox.classList.remove("hidden");
+  userBox.classList.add("hidden");
+  depositBox.classList.add("hidden");
+
+  let data = JSON.parse(localStorage.getItem("withdraws") || "[]");
+  let table = "<tr><th>User</th><th>Amount</th><th>Method</th><th>Status</th><th>Action</th></tr>";
+
+  data.forEach((d,i)=>{
+    table+=`
+      <tr>
+        <td>${d.user}</td>
+        <td>${d.amount}</td>
+        <td>${d.method}</td>
+        <td>${d.status}</td>
+        <td>
+          <span class="approve" onclick="approveWithdraw(${i})">Approve</span>
+          <span class="reject" onclick="rejectWithdraw(${i})">Reject</span>
+        </td>
+      </tr>`;
+  });
+
+  withdrawTable.innerHTML = table;
+}
+
+function approveWithdraw(i){
+  let w = JSON.parse(localStorage.getItem("withdraws"));
+  w[i].status = "Approved";
+  localStorage.setItem("withdraws", JSON.stringify(w));
+  loadWithdraws();
+}
+
+function rejectWithdraw(i){
+  let w = JSON.parse(localStorage.getItem("withdraws"));
+  w[i].status = "Rejected";
+  localStorage.setItem("withdraws", JSON.stringify(w));
+  loadWithdraws();
+}
+
+
+// -------------------- Logout --------------------
+function logout(){
+  location.reload();
+}
+
+</script>
+
+</body>
+</html>
